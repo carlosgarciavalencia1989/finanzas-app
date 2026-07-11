@@ -119,3 +119,55 @@ def listar_transacciones(
     ).all()
 
     return transacciones
+
+
+@app.put("/transacciones/{transaccion_id}", response_model=schemas.TransaccionRespuesta)
+def actualizar_transaccion(
+    transaccion_id: int,
+    transaccion: schemas.TransaccionCrear,
+    db: Session = Depends(get_db),
+    usuario_actual: models.Usuario = Depends(obtener_usuario_actual)
+):
+    transaccion_db = db.query(models.Transaccion).filter(
+        models.Transaccion.id == transaccion_id,
+        models.Transaccion.usuario_id == usuario_actual.id
+    ).first()
+
+    if transaccion_db is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Transacción no encontrada"
+        )
+
+    transaccion_db.monto = transaccion.monto
+    transaccion_db.tipo = transaccion.tipo
+    transaccion_db.categoria = transaccion.categoria
+    transaccion_db.descripcion = transaccion.descripcion
+
+    db.commit()
+    db.refresh(transaccion_db)
+
+    return transaccion_db
+
+
+@app.delete("/transacciones/{transaccion_id}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_transaccion(
+    transaccion_id: int,
+    db: Session = Depends(get_db),
+    usuario_actual: models.Usuario = Depends(obtener_usuario_actual)
+):
+    transaccion_db = db.query(models.Transaccion).filter(
+        models.Transaccion.id == transaccion_id,
+        models.Transaccion.usuario_id == usuario_actual.id
+    ).first()
+
+    if transaccion_db is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Transacción no encontrada"
+        )
+
+    db.delete(transaccion_db)
+    db.commit()
+
+    return None
