@@ -5,6 +5,7 @@ from database import Base, engine, get_db
 import models
 import schemas
 from security import hashear_password, verificar_password, crear_access_token, verificar_access_token
+from sqlalchemy import func
 
 Base.metadata.create_all(bind=engine)
 
@@ -82,6 +83,38 @@ def obtener_usuario_actual(
         )
 
     return usuario
+
+def calcular_estado_presupuesto(presupuesto: models.Presupuesto, db: Session):
+    gastado = db.query(func.sum(models.Transaccion.monto)).filter(
+        models.Transaccion.usuario_id == presupuesto.usuario_id,
+        models.Transaccion.categoria == presupuesto.categoria,
+        models.Transaccion.tipo == "gasto"
+    ).scalar()
+
+    if gastado is None:
+        gastado = 0.0
+
+    if presupuesto.limite > 0:
+        porcentaje = round(gastado / presupuesto.limite * 100)
+    else:
+        porcentaje = 0
+
+    if porcentaje >= 100:
+        estado = "excedido"
+    elif porcentaje >= 80:
+        estado = "cerca"
+    else:
+        estado = "ok"
+    
+    return {
+        "id": presupuesto.id,
+        "categoria": presupuesto.categoria,
+        "limite": presupuesto.limite,
+        "usuario_id": presupuesto.usuario_id,
+        "gastado": gastado,
+        "porcentaje": porcentaje,
+        "estado": estado
+    }
 
 
 @app.get("/perfil", response_model=schemas.UsuarioRespuesta)
@@ -171,3 +204,32 @@ def eliminar_transaccion(
     db.commit()
 
     return None
+
+@app.post("/presupuestos", response_model=schemas.PresupuestoRespuesta, status_code=status.HTTP_201_CREATED)
+def crear_presupuesto(
+    presupuesto: schemas.PresupuestoCrear,
+    db: Session = Depends(get_db),
+    usuario_actual: models.Usuario = Depends(obtener_usuario_actual)
+):
+    nuevo_presupuesto = models.Presupuesto(
+        categoria=presupuesto.categoria,
+        limite=presupuesto.limite,
+        usuario_id=usuario_actual.id
+    )
+
+    db.add(nuevo_presupuesto)
+    db.commit()
+    db.refresh(nuevo_presupuesto)
+
+    return calcular_estado_presupuesto(nuevo_presupuesto, db)
+
+@app.get("/presupuestos", response_model=list[schemas.PresupuestoRespuesta])
+def listar_presupuestos(
+    db: Session = Depends(get_db),
+    usuario_actual: models.Usuario = Depends(obtener_usuario_actual)
+):
+    presupuestos = db.query(models.Presupuesto).filter(
+        models.Presupuesto.usuario_id == usuario_actual.id
+    ).all()
+
+    return [calcular_estado_presupuesto(p, db) for p in presupuestos]

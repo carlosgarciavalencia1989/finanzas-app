@@ -12,6 +12,7 @@ class Usuario(Base):
     hashed_password = Column(String, nullable=False)
 
     transacciones = relationship("Transaccion", back_populates="usuario")
+    presupuestos = relationship("Presupuesto", back_populates="usuario")
 
 class Transaccion(Base):
     __tablename__ = "transacciones"
@@ -26,3 +27,14 @@ class Transaccion(Base):
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
 
     usuario = relationship("Usuario", back_populates="transacciones")
+
+class Presupuesto(Base):
+    __tablename__ = "presupuestos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    categoria = Column(String, nullable=False)
+    limite = Column(Float, nullable=False)
+
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+
+    usuario = relationship("Usuario", back_populates="presupuestos")

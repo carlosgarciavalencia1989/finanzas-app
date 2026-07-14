@@ -38,3 +38,19 @@ class TransaccionRespuesta(BaseModel):
     descripcion: str | None
     fecha: datetime
     usuario_id: int
+
+class PresupuestoCrear(BaseModel):
+    categoria: str
+    limite: float
+
+class PresupuestoRespuesta(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    categoria: str
+    limite: float
+    usuario_id: int
+
+    gastado: float
+    porcentaje: int
+    estado: str
