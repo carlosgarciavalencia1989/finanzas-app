@@ -233,3 +233,51 @@ def listar_presupuestos(
     ).all()
 
     return [calcular_estado_presupuesto(p, db) for p in presupuestos]
+
+@app.put("/presupuestos/{presupuesto_id}", response_model=schemas.PresupuestoRespuesta)
+def actualizar_presupuesto(
+    presupuesto_id: int,
+    presupuesto: schemas.PresupuestoCrear,
+    db: Session = Depends(get_db),
+    usuario_actual: models.Usuario = Depends(obtener_usuario_actual)
+):
+    presupuesto_db = db.query(models.Presupuesto).filter(
+        models.Presupuesto.id == presupuesto_id,
+        models.Presupuesto.usuario_id == usuario_actual.id
+    ).first()
+
+    if presupuesto_db is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Presupuesto no encontrado"
+        )
+
+    presupuesto_db.categoria = presupuesto.categoria
+    presupuesto_db.limite = presupuesto.limite
+
+    db.commit()
+    db.refresh(presupuesto_db)
+
+    return calcular_estado_presupuesto(presupuesto_db, db)
+
+@app.delete("/presupuestos/{presupuesto_id}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_presupuesto(
+    presupuesto_id: int,
+    db: Session = Depends(get_db),
+    usuario_actual: models.Usuario = Depends(obtener_usuario_actual)
+):
+    presupuesto_db = db.query(models.Presupuesto).filter(
+        models.Presupuesto.id == presupuesto_id,
+        models.Presupuesto.usuario_id == usuario_actual.id
+    ).first()
+
+    if presupuesto_db is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Presupuesto no encontrado"
+        )
+
+    db.delete(presupuesto_db)
+    db.commit()
+
+    return None
