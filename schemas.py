@@ -54,3 +54,23 @@ class PresupuestoRespuesta(BaseModel):
     gastado: float
     porcentaje: int
     estado: str
+
+class MetaCrear(BaseModel):
+    nombre: str
+    objetivo: float
+    meses: int
+
+
+class MetaRespuesta(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nombre: str
+    objetivo: float
+    meses: int
+    ahorrado: float
+    usuario_id: int
+
+    cuota_mensual: float
+    porcentaje: int
+    falta: float

@@ -116,6 +116,34 @@ def calcular_estado_presupuesto(presupuesto: models.Presupuesto, db: Session):
         "estado": estado
     }
 
+def calcular_estado_meta(meta: models.Meta):
+    if meta.meses > 0:
+        cuota_mensual = meta.objetivo / meta.meses
+    else:
+        cuota_mensual = 0.0
+
+    if meta.objetivo > 0:
+        porcentaje = round(meta.ahorrado / meta.objetivo * 100)
+    else:
+        porcentaje = 0
+
+    falta = meta.objetivo - meta.ahorrado
+
+    if falta < 0:
+        falta = 0.0
+
+    return {
+        "id": meta.id,
+        "nombre": meta.nombre,
+        "objetivo": meta.objetivo,
+        "meses": meta.meses,
+        "ahorrado": meta.ahorrado,
+        "usuario_id": meta.usuario_id,
+        "cuota_mensual": cuota_mensual,
+        "porcentaje": porcentaje,
+        "falta": falta
+    }
+
 
 @app.get("/perfil", response_model=schemas.UsuarioRespuesta)
 def perfil(usuario_actual: models.Usuario = Depends(obtener_usuario_actual)):
@@ -281,3 +309,34 @@ def eliminar_presupuesto(
     db.commit()
 
     return None
+
+@app.post("/metas", response_model=schemas.MetaRespuesta, status_code=status.HTTP_201_CREATED)
+def crear_meta(
+    meta: schemas.MetaCrear,
+    db: Session = Depends(get_db),
+    usuario_actual: models.Usuario = Depends(obtener_usuario_actual)
+):
+    nueva_meta = models.Meta(
+        nombre=meta.nombre,
+        objetivo=meta.objetivo,
+        meses=meta.meses,
+        usuario_id=usuario_actual.id
+    )
+
+    db.add(nueva_meta)
+    db.commit()
+    db.refresh(nueva_meta)
+
+    return calcular_estado_meta(nueva_meta)
+
+
+@app.get("/metas", response_model=list[schemas.MetaRespuesta])
+def listar_metas(
+    db: Session = Depends(get_db),
+    usuario_actual: models.Usuario = Depends(obtener_usuario_actual)
+):
+    metas = db.query(models.Meta).filter(
+        models.Meta.usuario_id == usuario_actual.id
+    ).all()
+
+    return [calcular_estado_meta(m) for m in metas]

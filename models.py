@@ -13,6 +13,7 @@ class Usuario(Base):
 
     transacciones = relationship("Transaccion", back_populates="usuario")
     presupuestos = relationship("Presupuesto", back_populates="usuario")
+    metas = relationship("Meta", back_populates="usuario")
 
 class Transaccion(Base):
     __tablename__ = "transacciones"
@@ -38,3 +39,16 @@ class Presupuesto(Base):
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
 
     usuario = relationship("Usuario", back_populates="presupuestos")
+
+class Meta(Base):
+    __tablename__ = "metas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String, nullable=False)
+    objetivo = Column(Float, nullable=False)
+    meses = Column(Integer, nullable=False)
+    ahorrado = Column(Float, nullable=False, default=0.0)
+
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+
+    usuario = relationship("Usuario", back_populates="metas")
