@@ -340,3 +340,120 @@ def listar_metas(
     ).all()
 
     return [calcular_estado_meta(m) for m in metas]
+
+@app.post("/metas/{meta_id}/aportar", response_model=schemas.MetaRespuesta)
+def aportar_a_meta(
+    meta_id: int,
+    aporte: schemas.MetaAporte,
+    db: Session = Depends(get_db),
+    usuario_actual: models.Usuario = Depends(obtener_usuario_actual)
+):
+    meta_db = db.query(models.Meta).filter(
+        models.Meta.id == meta_id,
+        models.Meta.usuario_id == usuario_actual.id
+    ).first()
+
+    if meta_db is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Meta no encontrada"
+        )
+
+    if aporte.monto <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El monto del aporte debe ser mayor a cero"
+        )
+
+    meta_db.ahorrado = meta_db.ahorrado + aporte.monto
+
+    if meta_db.ahorrado > meta_db.objetivo:
+        meta_db.ahorrado = meta_db.objetivo
+
+    db.commit()
+    db.refresh(meta_db)
+
+    return calcular_estado_meta(meta_db)
+
+@app.post("/metas/calcular-fondo-emergencia", response_model=schemas.FondoEmergenciaRespuesta)
+def calcular_fondo_emergencia(
+    datos: schemas.FondoEmergenciaCalculo,
+    usuario_actual: models.Usuario = Depends(obtener_usuario_actual)
+):
+    if datos.gastos_mensuales <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Los gastos mensuales deben ser mayores a cero"
+        )
+
+    if datos.meses_colchon <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Los meses de colchón deben ser mayores a cero"
+        )
+
+    if datos.plazo_meses <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El plazo debe ser mayor a cero"
+        )
+
+    objetivo = datos.gastos_mensuales * datos.meses_colchon
+    cuota_mensual = objetivo / datos.plazo_meses
+
+    return {
+        "gastos_mensuales": datos.gastos_mensuales,
+        "meses_colchon": datos.meses_colchon,
+        "plazo_meses": datos.plazo_meses,
+        "objetivo": objetivo,
+        "cuota_mensual": cuota_mensual
+    }
+
+@app.put("/metas/{meta_id}", response_model=schemas.MetaRespuesta)
+def actualizar_meta(
+    meta_id: int,
+    meta: schemas.MetaCrear,
+    db: Session = Depends(get_db),
+    usuario_actual: models.Usuario = Depends(obtener_usuario_actual)
+):
+    meta_db = db.query(models.Meta).filter(
+        models.Meta.id == meta_id,
+        models.Meta.usuario_id == usuario_actual.id
+    ).first()
+
+    if meta_db is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Meta no encontrada"
+        )
+
+    meta_db.nombre = meta.nombre
+    meta_db.objetivo = meta.objetivo
+    meta_db.meses = meta.meses
+
+    db.commit()
+    db.refresh(meta_db)
+
+    return calcular_estado_meta(meta_db)
+
+@app.delete("/metas/{meta_id}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_meta(
+    meta_id: int,
+    db: Session = Depends(get_db),
+    usuario_actual: models.Usuario = Depends(obtener_usuario_actual)
+):
+    meta_db = db.query(models.Meta).filter(
+        models.Meta.id == meta_id,
+        models.Meta.usuario_id == usuario_actual.id
+    ).first()
+
+    if meta_db is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Meta no encontrada"
+        )
+
+    db.delete(meta_db)
+    db.commit()
+
+    return None

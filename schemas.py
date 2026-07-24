@@ -74,3 +74,20 @@ class MetaRespuesta(BaseModel):
     cuota_mensual: float
     porcentaje: int
     falta: float
+
+
+class MetaAporte(BaseModel):
+    monto: float
+
+class FondoEmergenciaCalculo(BaseModel):
+    gastos_mensuales: float
+    meses_colchon: int
+    plazo_meses: int
+
+
+class FondoEmergenciaRespuesta(BaseModel):
+    gastos_mensuales: float
+    meses_colchon: int
+    plazo_meses: int
+    objetivo: float
+    cuota_mensual: float
